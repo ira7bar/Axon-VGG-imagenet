@@ -3,8 +3,9 @@ import tensorflow as tf
 import time
 from datetime import datetime
 
-NUM_CLASSES = 50
-INITILAIAZATION_METHOD = 'Naive' #'Xavier' #'Naive'
+NUM_CLASSES = 200
+# INITILAIAZATION_METHOD = 'Naive'
+INITILAIAZATION_METHOD = 'Xavier'
 OPTIMIZER = tf.train.MomentumOptimizer # tf.train.AdamOptimizer
 INITIAL_LEARNING_RATE = 1e-4
 ITERATIONS = 500 * 500
@@ -13,6 +14,9 @@ BIAS_CONST = 0.01
 BATCH_SIZE = 100
 LR_ITERATIONS = [20000, 50000]
 SAVE_CHECKPOINTS = False
+DO_DROPOUT = True
+TRAIN_KEEP_PROB = 0.75
+TEST_KEEP_PROB = 1
 
 # def prepare_cifar_data():
 #     # set data folder in cifar_utils.py
@@ -170,7 +174,7 @@ def get_batch_data(x,y,batch_size):
     return batch_x, batch_y
 
 
-def vgg_C(X, y_):
+def vgg_C(X, y_,keep_prob):
     # conv1_shape = [3,3,3,64]
     # conv2_shape = [3,3,64,64]
     # # maxpool
@@ -257,7 +261,15 @@ def vgg_C(X, y_):
     #fc1_activation, fc1_weights = fc_layer(max_pool_4_flattened,fc1_shape,'fc1')
     max_pool_3_flattened = tf.reshape(max_pool_3, [-1, fc1_shape[0]])
     fc1_activation, fc1_weights = fc_layer(max_pool_3_flattened,fc1_shape,'fc1')
+
+    if DO_DROPOUT:
+        fc1_activation = tf.nn.dropout(fc1_activation, keep_prob)
+
     fc2_activation, fc2_weights = fc_layer(fc1_activation,fc2_shape,'fc2')
+
+    if DO_DROPOUT:
+        fc2_activation = tf.nn.dropout(fc2_activation, keep_prob)
+
     fc3_activation, fc3_weights = fc_layer(fc2_activation,fc3_shape,'fc3', act=None)
 
     y = tf.nn.softmax(fc3_activation)
@@ -307,8 +319,10 @@ def main(_):
 
     lr = tf.placeholder(tf.float32)
 
+    keep_prob = tf.placeholder(tf.float32)
+
     with tf.name_scope('VGG'):
-        y, cross_entropy = vgg_C(x, y_)
+        y, cross_entropy = vgg_C(x, y_,keep_prob)
         with tf.name_scope('adam_optimizer'):
             tf.summary.scalar('learning_rate', lr)
             train_step = OPTIMIZER(lr,momentum=0.9).minimize(cross_entropy)
@@ -344,7 +358,7 @@ def main(_):
             learning_rate = INITIAL_LEARNING_RATE
             for i in range(ITERATIONS):
                 batch_x, batch_y = get_batch_data(train_images, train_cls_vec, BATCH_SIZE)
-                sess.run(train_step, feed_dict={x: batch_x, y_: batch_y, lr: learning_rate})
+                sess.run(train_step, feed_dict={x: batch_x, y_: batch_y, lr: learning_rate, keep_prob: TRAIN_KEEP_PROB})
                 new_cost = sess.run(cross_entropy, feed_dict={x: batch_x, y_: batch_y})
 
                 # if(np.square(new_cost-old_cost) < tolerance):
@@ -357,16 +371,16 @@ def main(_):
                 #     break
 
                 if i % 100 == 0:
-                    cost_empirical, accuracy_empirical = sess.run([cross_entropy, accuracy], feed_dict={x: batch_x, y_: batch_y})
-                    summary = sess.run(merged, feed_dict={x: batch_x, y_: batch_y, lr: learning_rate})
+                    cost_empirical, accuracy_empirical = sess.run([cross_entropy, accuracy], feed_dict={x: batch_x, y_: batch_y, keep_prob: TRAIN_KEEP_PROB})
+                    summary = sess.run(merged, feed_dict={x: batch_x, y_: batch_y, lr: learning_rate, keep_prob: TRAIN_KEEP_PROB})
                     train_writer.add_summary(summary, i)
                     print("Iteration {}, time passed: {}, train cost: {}, train accuracy: {}".format(i, time.time() - t0 , cost_empirical, accuracy_empirical))
 
                 if i % 500 == 0:
                     # batch_x_test, batch_y_test = test_images, test_cls_vec
                     batch_x_test, batch_y_test = get_batch_data(test_images, test_cls_vec,BATCH_SIZE)
-                    cost_empirical, accuracy_empirical = sess.run([cross_entropy, accuracy], feed_dict={x: batch_x_test, y_: batch_y_test})
-                    summary = sess.run(merged, feed_dict={x: batch_x_test, y_: batch_y_test, lr: learning_rate})
+                    cost_empirical, accuracy_empirical = sess.run([cross_entropy, accuracy], feed_dict={x: batch_x_test, y_: batch_y_test, keep_prob: TEST_KEEP_PROB})
+                    summary = sess.run(merged, feed_dict={x: batch_x_test, y_: batch_y_test, lr: learning_rate, keep_prob: TEST_KEEP_PROB})
                     test_writer.add_summary(summary, i)
                     print("Test cost: {}, Test accuracy: {}".format(cost_empirical, accuracy_empirical))
 
