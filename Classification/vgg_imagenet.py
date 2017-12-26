@@ -3,7 +3,9 @@ import tensorflow as tf
 import time
 from datetime import datetime
 
-NUM_CLASSES = 10
+NUM_CLASSES = 50
+INITILAIAZATION_METHOD = 'Naive' #'Xavier' #'Naive'
+OPTIMIZER = tf.train.MomentumOptimizer # tf.train.AdamOptimizer
 INITIAL_LEARNING_RATE = 1e-4
 ITERATIONS = 500 * 500
 WEIGHTS_STDEV = 0.01
@@ -70,7 +72,7 @@ def get_logdir():
     return logdir
 
 def variable_summaries(var):
-    pass
+    # pass
     # with tf.name_scope('summaries'):
     #     mean = tf.reduce_mean(var)
     #     tf.summary.scalar('mean', mean)
@@ -79,23 +81,37 @@ def variable_summaries(var):
     # tf.summary.scalar('stddev', stddev)
     # tf.summary.scalar('max', tf.reduce_max(var))
     # tf.summary.scalar('min', tf.reduce_min(var))
-    # tf.summary.histogram('histogram', var)
+    tf.summary.histogram('histogram', var)
 
 def weight_variable(shape):
-    initial = tf.truncated_normal(shape, stddev=WEIGHTS_STDEV)
-    return tf.Variable(initial)
+    if INITILAIAZATION_METHOD == 'Xavier':
+        initializer = tf.contrib.layers.xavier_initializer(uniform=False)
+        W = tf.Variable(initializer(shape))
+
+    else:
+        #Naive initilazation
+        initial = tf.truncated_normal(shape, stddev=WEIGHTS_STDEV)
+        W = tf.Variable(initial)
+    return W
+    #return tf.Variable(initial)
     # W = tf.get_variable("weights", shape=shape,
     #                     initializer=tf.contrib.layers.xavier_initializer())
     # return W
 
 
-    # initializer = tf.contrib.layers.xavier_initializer()
+    # initializer = tf.contrib.layers.xavier_initializer(uniform=False)
     # return tf.Variable(initializer(shape))
 
 def bias_variable(shape):
-    initial = tf.constant(BIAS_CONST, shape=[shape])
-    return tf.Variable(initial)
-    # initializer = tf.contrib.layers.xavier_initializer()
+    if INITILAIAZATION_METHOD == 'Xavier':
+        initializer = tf.contrib.layers.xavier_initializer(uniform=False)
+        b = tf.Variable(initializer([shape]))
+    else:
+        # Naive initiliaztion
+        initial = tf.constant(BIAS_CONST, shape=[shape])
+        b =  tf.Variable(initial)
+    return b
+    # initializer = tf.contrib.layers.xavier_initializer(uniform=False)
     # return tf.Variable(initializer([shape]))
 
 def conv2d(x, W):
@@ -115,9 +131,15 @@ def fc_layer(input_tensor, shape, name, act = tf.nn.relu):
         with tf.name_scope('Wx_plus_b'):
             preactivate = tf.matmul(input_tensor, weights) + biases
             tf.summary.histogram('pre_activations', preactivate)
-        activations = act(preactivate, name='activation')
-        tf.summary.histogram('activations', activations)
-        return activations, weights
+        if act:
+            activations = act(preactivate, name='activation')
+            tf.summary.histogram('activations', activations)
+            return activations, weights
+
+        else:
+            tf.summary.histogram('preactivate', preactivate)
+            return preactivate, weights
+
 
 def conv_layer(input_tensor, shape, name, act = tf.nn.relu):
     with tf.name_scope(name):
@@ -211,7 +233,8 @@ def vgg_C(X, y_):
     conv8_shape = [3, 3, 256, 512]
     conv9_shape = [3, 3, 512, 512]
     # # maxpool
-    fc1_shape = [4*4*512,4096]
+    #fc1_shape = [4*4*512,4096]
+    fc1_shape = [8*8*256,4096]
     fc2_shape = [4096,4096]
     fc3_shape = [4096,NUM_CLASSES]
 
@@ -226,20 +249,23 @@ def vgg_C(X, y_):
     conv6_activation, conv6_weights = conv_layer(conv5_activation, conv6_shape, 'conv6')
     max_pool_3 = max_pool_layer(conv6_activation, 'maxpool3')
     #block 3
-    conv8_activation, conv8_weights = conv_layer(max_pool_3, conv8_shape, 'conv8')
-    conv9_activation, conv9_weights = conv_layer(conv8_activation, conv9_shape, 'conv9')
-    max_pool_4 = max_pool_layer(conv9_activation, 'maxpool4')
+    #conv8_activation, conv8_weights = conv_layer(max_pool_3, conv8_shape, 'conv8')
+    #conv9_activation, conv9_weights = conv_layer(conv8_activation, conv9_shape, 'conv9')
+    #max_pool_4 = max_pool_layer(conv9_activation, 'maxpool4')
     #fully connected layers
-    max_pool_4_flattened = tf.reshape(max_pool_4, [-1, fc1_shape[0]])
-    fc1_activation, fc1_weights = fc_layer(max_pool_4_flattened,fc1_shape,'fc1')
+    #max_pool_4_flattened = tf.reshape(max_pool_4, [-1, fc1_shape[0]])
+    #fc1_activation, fc1_weights = fc_layer(max_pool_4_flattened,fc1_shape,'fc1')
+    max_pool_3_flattened = tf.reshape(max_pool_3, [-1, fc1_shape[0]])
+    fc1_activation, fc1_weights = fc_layer(max_pool_3_flattened,fc1_shape,'fc1')
     fc2_activation, fc2_weights = fc_layer(fc1_activation,fc2_shape,'fc2')
-    fc3_activation, fc3_weights = fc_layer(fc2_activation,fc3_shape,'fc3')
+    fc3_activation, fc3_weights = fc_layer(fc2_activation,fc3_shape,'fc3', act=None)
 
     y = tf.nn.softmax(fc3_activation)
 
 
     with tf.name_scope('cross_entropy_loss'):
-        reg_const = 5e-4
+        # reg_const = 5e-4
+        reg_const = 1
         cross_entropy_logits = tf.nn.softmax_cross_entropy_with_logits(labels=y_, logits=fc3_activation)
         # cross_entropy_regularized = cross_entropy + reg_const * (tf.nn.l2_loss(conv1_weights) +tf.nn.l2_loss(conv2_weights)
         #                                                          + tf.nn.l2_loss(conv3_weights) + tf.nn.l2_loss(conv4_weights)
@@ -285,7 +311,8 @@ def main(_):
         y, cross_entropy = vgg_C(x, y_)
         with tf.name_scope('adam_optimizer'):
             tf.summary.scalar('learning_rate', lr)
-            train_step = tf.train.AdamOptimizer(lr).minimize(cross_entropy)
+            train_step = OPTIMIZER(lr,momentum=0.9).minimize(cross_entropy)
+            #train_step = tf.train.AdamOptimizer(lr).minimize(cross_entropy)
         with tf.name_scope('accuracy'):
             correct_prediction = tf.equal(tf.argmax(y, 1), tf.argmax(y_, 1))
             correct_prediction = tf.cast(correct_prediction, tf.float32)
@@ -301,9 +328,13 @@ def main(_):
 
         saver = tf.train.Saver()
 
-        saver_path = "./checkpoints/" + get_logdir() + "/" + get_logdir() + ".ckpt"
+        timestamp = get_logdir()
 
-        logs_path = "./logs/" + get_logdir() + "/VGG/"
+        print("Timestamp: {}".format(timestamp))
+
+        saver_path = "./checkpoints/" + timestamp + "/" + get_logdir() + ".ckpt"
+
+        logs_path = "./logs/" + timestamp + "/VGG/"
 
         with tf.Session() as sess:
             train_writer = tf.summary.FileWriter(logs_path + "train", sess.graph)
