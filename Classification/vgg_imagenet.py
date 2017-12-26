@@ -3,13 +3,14 @@ import tensorflow as tf
 import time
 from datetime import datetime
 
-NUM_CLASSES = 200
-INITIAL_LEARNING_RATE = 1e-2
+NUM_CLASSES = 10
+INITIAL_LEARNING_RATE = 1e-4
 ITERATIONS = 500 * 500
 WEIGHTS_STDEV = 0.01
 BIAS_CONST = 0.01
 BATCH_SIZE = 100
 LR_ITERATIONS = [20000, 50000]
+SAVE_CHECKPOINTS = False
 
 # def prepare_cifar_data():
 #     # set data folder in cifar_utils.py
@@ -83,10 +84,19 @@ def variable_summaries(var):
 def weight_variable(shape):
     initial = tf.truncated_normal(shape, stddev=WEIGHTS_STDEV)
     return tf.Variable(initial)
+    # W = tf.get_variable("weights", shape=shape,
+    #                     initializer=tf.contrib.layers.xavier_initializer())
+    # return W
+
+
+    # initializer = tf.contrib.layers.xavier_initializer()
+    # return tf.Variable(initializer(shape))
 
 def bias_variable(shape):
     initial = tf.constant(BIAS_CONST, shape=[shape])
     return tf.Variable(initial)
+    # initializer = tf.contrib.layers.xavier_initializer()
+    # return tf.Variable(initializer([shape]))
 
 def conv2d(x, W):
     return tf.nn.conv2d(x, W, strides=[1, 1, 1, 1], padding='SAME')
@@ -237,13 +247,14 @@ def vgg_C(X, y_):
         #                                                          + tf.nn.l2_loss(conv7_weights) + tf.nn.l2_loss(conv8_weights)
         #                                                          + tf.nn.l2_loss(conv9_weights) + tf.nn.l2_loss(conv10_weights)
         #                                                          + tf.nn.l2_loss(fc1_weights) + tf.nn.l2_loss(fc2_weights) + tf.nn.l2_loss(fc3_weights))
-        cross_entropy_regularized = cross_entropy_logits + reg_const * (tf.nn.l2_loss(conv1_weights)
-                                                                 + tf.nn.l2_loss(conv4_weights)
-                                                                 + tf.nn.l2_loss(conv5_weights) + tf.nn.l2_loss(conv6_weights)
-                                                                 + tf.nn.l2_loss(conv8_weights)
-                                                                 + tf.nn.l2_loss(conv9_weights)
-                                                                 + tf.nn.l2_loss(fc1_weights) + tf.nn.l2_loss(fc2_weights) + tf.nn.l2_loss(fc3_weights))
-        cross_entropy_regularized = tf.reduce_mean(cross_entropy_regularized)
+        # cross_entropy_regularized = cross_entropy_logits + reg_const * (tf.nn.l2_loss(conv1_weights)
+        #                                                          + tf.nn.l2_loss(conv4_weights)
+        #                                                          + tf.nn.l2_loss(conv5_weights) + tf.nn.l2_loss(conv6_weights)
+        #                                                          + tf.nn.l2_loss(conv8_weights)
+        #                                                          + tf.nn.l2_loss(conv9_weights)
+        #                                                          + tf.nn.l2_loss(fc1_weights) + tf.nn.l2_loss(fc2_weights) + tf.nn.l2_loss(fc3_weights))
+        # cross_entropy_regularized = tf.reduce_mean(cross_entropy_regularized)
+        cross_entropy_regularized = tf.reduce_mean(cross_entropy_logits)
         # variable_summaries(cross_entropy_regularized)
         tf.summary.scalar('cross_entropy',cross_entropy_regularized)
 
@@ -329,8 +340,9 @@ def main(_):
                     print("Test cost: {}, Test accuracy: {}".format(cost_empirical, accuracy_empirical))
 
                 if i % 10000 ==0:
-                    save_path = saver.save(sess, saver_path)
-                    print("Model saved in file: %s" % save_path)
+                    if SAVE_CHECKPOINTS:
+                        save_path = saver.save(sess, saver_path)
+                        print("Model saved in file: %s" % save_path)
 
                 if i in LR_ITERATIONS:
                     print("Changed learning rate, iteration {}".format(i))
