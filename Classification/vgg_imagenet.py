@@ -6,7 +6,8 @@ from datetime import datetime
 NUM_CLASSES = 200
 # INITILAIAZATION_METHOD = 'Naive'
 INITILAIAZATION_METHOD = 'Xavier'
-OPTIMIZER = tf.train.MomentumOptimizer # tf.train.AdamOptimizer
+# OPTIMIZER = tf.train.MomentumOptimizer # tf.train.AdamOptimizer
+OPTIMIZER = tf.train.AdamOptimizer
 INITIAL_LEARNING_RATE = 1e-4
 ITERATIONS = 500 * 500
 WEIGHTS_STDEV = 0.01
@@ -14,8 +15,9 @@ BIAS_CONST = 0.01
 BATCH_SIZE = 100
 LR_ITERATIONS = [20000, 50000]
 SAVE_CHECKPOINTS = False
+DO_REGULARIZATION = False
 DO_DROPOUT = True
-TRAIN_KEEP_PROB = 0.75
+TRAIN_KEEP_PROB = 0.50
 TEST_KEEP_PROB = 1
 
 # def prepare_cifar_data():
@@ -229,10 +231,10 @@ def vgg_C(X, y_,keep_prob):
 
     # maxpool
 
-    conv4_shape = [3,3,64,128]
+    conv2_shape = [3,3,64,128]
     # maxpool
-    conv5_shape = [3,3,128,256]
-    conv6_shape = [3,3,256,256]
+    conv3_shape = [3,3,128,256]
+    conv4_shape = [3,3,256,256]
     # maxpool
     conv8_shape = [3, 3, 256, 512]
     conv9_shape = [3, 3, 512, 512]
@@ -246,12 +248,12 @@ def vgg_C(X, y_,keep_prob):
     conv1_activation, conv1_weights = conv_layer(X, conv1_shape, 'conv1')
     max_pool_1 = max_pool_layer(conv1_activation,'maxpool1')
     #block 1
-    conv4_activation, conv4_weights = conv_layer(max_pool_1, conv4_shape, 'conv4')
-    max_pool_2 = max_pool_layer(conv4_activation, 'maxpool2')
+    conv2_activation, conv2_weights = conv_layer(max_pool_1, conv2_shape, 'conv2')
+    max_pool_2 = max_pool_layer(conv2_activation, 'maxpool2')
     #block 2
-    conv5_activation, conv5_weights = conv_layer(max_pool_2, conv5_shape, 'conv5')
-    conv6_activation, conv6_weights = conv_layer(conv5_activation, conv6_shape, 'conv6')
-    max_pool_3 = max_pool_layer(conv6_activation, 'maxpool3')
+    conv3_activation, conv3_weights = conv_layer(max_pool_2, conv3_shape, 'conv3')
+    conv4_activation, conv4_weights = conv_layer(conv3_activation, conv4_shape, 'conv4')
+    max_pool_3 = max_pool_layer(conv4_activation, 'maxpool3')
     #block 3
     #conv8_activation, conv8_weights = conv_layer(max_pool_3, conv8_shape, 'conv8')
     #conv9_activation, conv9_weights = conv_layer(conv8_activation, conv9_shape, 'conv9')
@@ -276,8 +278,8 @@ def vgg_C(X, y_,keep_prob):
 
 
     with tf.name_scope('cross_entropy_loss'):
-        # reg_const = 5e-4
-        reg_const = 1
+        reg_const = 5e-2
+        # reg_const = 1
         cross_entropy_logits = tf.nn.softmax_cross_entropy_with_logits(labels=y_, logits=fc3_activation)
         # cross_entropy_regularized = cross_entropy + reg_const * (tf.nn.l2_loss(conv1_weights) +tf.nn.l2_loss(conv2_weights)
         #                                                          + tf.nn.l2_loss(conv3_weights) + tf.nn.l2_loss(conv4_weights)
@@ -285,15 +287,16 @@ def vgg_C(X, y_,keep_prob):
         #                                                          + tf.nn.l2_loss(conv7_weights) + tf.nn.l2_loss(conv8_weights)
         #                                                          + tf.nn.l2_loss(conv9_weights) + tf.nn.l2_loss(conv10_weights)
         #                                                          + tf.nn.l2_loss(fc1_weights) + tf.nn.l2_loss(fc2_weights) + tf.nn.l2_loss(fc3_weights))
-        # cross_entropy_regularized = cross_entropy_logits + reg_const * (tf.nn.l2_loss(conv1_weights)
-        #                                                          + tf.nn.l2_loss(conv4_weights)
-        #                                                          + tf.nn.l2_loss(conv5_weights) + tf.nn.l2_loss(conv6_weights)
-        #                                                          + tf.nn.l2_loss(conv8_weights)
-        #                                                          + tf.nn.l2_loss(conv9_weights)
-        #                                                          + tf.nn.l2_loss(fc1_weights) + tf.nn.l2_loss(fc2_weights) + tf.nn.l2_loss(fc3_weights))
-        # cross_entropy_regularized = tf.reduce_mean(cross_entropy_regularized)
-        cross_entropy_regularized = tf.reduce_mean(cross_entropy_logits)
-        # variable_summaries(cross_entropy_regularized)
+        if DO_REGULARIZATION:
+
+            cross_entropy_regularized = cross_entropy_logits + reg_const * (tf.nn.l2_loss(conv1_weights)
+                                                                     + tf.nn.l2_loss(conv2_weights)
+                                                                     + tf.nn.l2_loss(conv3_weights) + tf.nn.l2_loss(conv4_weights)
+                                                                           + tf.nn.l2_loss(fc1_weights) + tf.nn.l2_loss(fc2_weights) + tf.nn.l2_loss(fc3_weights))
+            cross_entropy_regularized = tf.reduce_mean(cross_entropy_regularized)
+        else:
+            cross_entropy_regularized = tf.reduce_mean(cross_entropy_logits)
+        variable_summaries(cross_entropy_regularized)
         tf.summary.scalar('cross_entropy',cross_entropy_regularized)
 
     return y, cross_entropy_regularized
@@ -325,7 +328,8 @@ def main(_):
         y, cross_entropy = vgg_C(x, y_,keep_prob)
         with tf.name_scope('adam_optimizer'):
             tf.summary.scalar('learning_rate', lr)
-            train_step = OPTIMIZER(lr,momentum=0.9).minimize(cross_entropy)
+            # train_step = OPTIMIZER(lr,momentum=0.9).minimize(cross_entropy)
+            train_step = OPTIMIZER(lr).minimize(cross_entropy)
             #train_step = tf.train.AdamOptimizer(lr).minimize(cross_entropy)
         with tf.name_scope('accuracy'):
             correct_prediction = tf.equal(tf.argmax(y, 1), tf.argmax(y_, 1))
@@ -359,7 +363,7 @@ def main(_):
             for i in range(ITERATIONS):
                 batch_x, batch_y = get_batch_data(train_images, train_cls_vec, BATCH_SIZE)
                 sess.run(train_step, feed_dict={x: batch_x, y_: batch_y, lr: learning_rate, keep_prob: TRAIN_KEEP_PROB})
-                new_cost = sess.run(cross_entropy, feed_dict={x: batch_x, y_: batch_y})
+                new_cost = sess.run(cross_entropy, feed_dict={x: batch_x, y_: batch_y, keep_prob: TRAIN_KEEP_PROB})
 
                 # if(np.square(new_cost-old_cost) < tolerance):
                 #     batch_x_test, batch_y_test = test_images, test_cls_vec
