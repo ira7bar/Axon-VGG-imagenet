@@ -4,21 +4,28 @@ import time
 from datetime import datetime
 
 NUM_CLASSES = 200
+CONFIGURATION = 'C'
 # INITILAIAZATION_METHOD = 'Naive'
 INITILAIAZATION_METHOD = 'Xavier'
 # OPTIMIZER = tf.train.MomentumOptimizer # tf.train.AdamOptimizer
 OPTIMIZER = tf.train.AdamOptimizer
 INITIAL_LEARNING_RATE = 1e-4
-ITERATIONS = 500 * 500
+ITERATIONS = 500 * 5000
 WEIGHTS_STDEV = 0.01
 BIAS_CONST = 0.01
 BATCH_SIZE = 100
-LR_ITERATIONS = [20000, 50000]
+LR_ITERATIONS = [50000, 200000]
+# LR_ITERATIONS = []
 SAVE_CHECKPOINTS = False
-DO_REGULARIZATION = False
+DO_REGULARIZATION = True
+REG_CONST = 5e-5
 DO_DROPOUT = True
-TRAIN_KEEP_PROB = 0.50
+TRAIN_KEEP_PROB = 0.60
 TEST_KEEP_PROB = 1
+
+# shahars path = 'home/student-8/PycharmProjects/Axon-VGG-imagenet/tiny-imagenet-200'
+# valAnnotationsPath = 'home/student-8/PycharmProjects/Axon-VGG-imagenet/tiny-imagenet-200/val/val_annotations.txt'
+
 
 # def prepare_cifar_data():
 #     # set data folder in cifar_utils.py
@@ -99,14 +106,6 @@ def weight_variable(shape):
         initial = tf.truncated_normal(shape, stddev=WEIGHTS_STDEV)
         W = tf.Variable(initial)
     return W
-    #return tf.Variable(initial)
-    # W = tf.get_variable("weights", shape=shape,
-    #                     initializer=tf.contrib.layers.xavier_initializer())
-    # return W
-
-
-    # initializer = tf.contrib.layers.xavier_initializer(uniform=False)
-    # return tf.Variable(initializer(shape))
 
 def bias_variable(shape):
     if INITILAIAZATION_METHOD == 'Xavier':
@@ -177,117 +176,122 @@ def get_batch_data(x,y,batch_size):
 
 
 def vgg_C(X, y_,keep_prob):
-    # conv1_shape = [3,3,3,64]
-    # conv2_shape = [3,3,64,64]
-    # # maxpool
-    # conv3_shape = [3,3,64,128]
-    # conv4_shape = [3,3,128,128]
-    # # maxpool
-    # conv5_shape = [3,3,128,256]
-    # conv6_shape = [3,3,256,256]
-    # conv7_shape = [1,1,256,256]
-    # # maxpool
-    # conv8_shape = [3, 3, 256, 512]
-    # conv9_shape = [3, 3, 512, 512]
-    # conv10_shape = [1, 1, 512, 512]
-    # # maxpool
-    # # conv11_shape = [3, 3, 512, 512]
-    # # conv12_shape = [3, 3, 512, 512]
-    # # conv13_shape = [1, 1, 512, 512]
-    # # # maxpool
-    # fc1_shape = [4*4*512,4096]
-    # fc2_shape = [4096,4096]
-    # fc3_shape = [4096,NUM_CLASSES]
-    #
-    # #block 0
-    # conv1_activation, conv1_weights = conv_layer(X, conv1_shape, 'conv1')
-    # conv2_activation, conv2_weights = conv_layer(conv1_activation, conv2_shape, 'conv2')
-    # max_pool_1 = max_pool_layer(conv2_activation,'maxpool1')
-    # #block 1
-    # conv3_activation, conv3_weights = conv_layer(max_pool_1, conv3_shape, 'conv3')
-    # conv4_activation, conv4_weights = conv_layer(conv3_activation, conv4_shape, 'conv4')
-    # max_pool_2 = max_pool_layer(conv4_activation, 'maxpool2')
-    # #block 2
-    # conv5_activation, conv5_weights = conv_layer(max_pool_2, conv5_shape, 'conv5')
-    # conv6_activation, conv6_weights = conv_layer(conv5_activation, conv6_shape, 'conv6')
-    # conv7_activation, conv7_weights = conv_layer(conv6_activation, conv7_shape, 'conv7')
-    # max_pool_3 = max_pool_layer(conv7_activation, 'maxpool3')
-    # #block 3
-    # conv8_activation, conv8_weights = conv_layer(max_pool_3, conv8_shape, 'conv8')
-    # conv9_activation, conv9_weights = conv_layer(conv8_activation, conv9_shape, 'conv9')
-    # conv10_activation, conv10_weights = conv_layer(conv9_activation, conv10_shape, 'conv10')
-    # max_pool_4 = max_pool_layer(conv10_activation, 'maxpool4')
-    # #fully connected layers
-    # max_pool_4_flattened = tf.reshape(max_pool_4, [-1, fc1_shape[0]])
-    # fc1_activation, fc1_weights = fc_layer(max_pool_4_flattened,fc1_shape,'fc1')
-    # fc2_activation, fc2_weights = fc_layer(fc1_activation,fc2_shape,'fc2')
-    # fc3_activation, fc3_weights = fc_layer(fc2_activation,fc3_shape,'fc3')
-    #
-    # y = tf.nn.softmax(fc3_activation)
+    if CONFIGURATION == 'C':
+        conv1_shape = [3,3,3,64]
+        conv2_shape = [3,3,64,64]
+        # maxpool
+        conv3_shape = [3,3,64,128]
+        conv4_shape = [3,3,128,128]
+        # maxpool
+        conv5_shape = [3,3,128,256]
+        conv6_shape = [3,3,256,256]
+        # conv7_shape = [1,1,256,256]
+        conv7_shape = [3,3,256,256]
+        # maxpool
+        conv8_shape = [3, 3, 256, 512]
+        conv9_shape = [3, 3, 512, 512]
+        # conv10_shape = [1, 1, 512, 512]
+        conv10_shape = [3, 3, 512, 512]
+        # maxpool
+        # conv11_shape = [3, 3, 512, 512]
+        # conv12_shape = [3, 3, 512, 512]
+        # conv13_shape = [1, 1, 512, 512]
+        # # maxpool
+        # fc1_shape = [4*4*512,4096]
+        fc1_shape = [8*8*512,4096]
+        fc2_shape = [4096,2048]
+        fc3_shape = [2048,NUM_CLASSES]
 
-    # A configuration:
+        #block 0
+        conv1_activation, conv1_weights = conv_layer(X, conv1_shape, 'conv1')
+        conv2_activation, conv2_weights = conv_layer(conv1_activation, conv2_shape, 'conv2')
+        max_pool_1 = max_pool_layer(conv2_activation,'maxpool1')
+        #block 1
+        conv3_activation, conv3_weights = conv_layer(max_pool_1, conv3_shape, 'conv3')
+        conv4_activation, conv4_weights = conv_layer(conv3_activation, conv4_shape, 'conv4')
+        max_pool_2 = max_pool_layer(conv4_activation, 'maxpool2')
+        #block 2
+        conv5_activation, conv5_weights = conv_layer(max_pool_2, conv5_shape, 'conv5')
+        conv6_activation, conv6_weights = conv_layer(conv5_activation, conv6_shape, 'conv6')
+        conv7_activation, conv7_weights = conv_layer(conv6_activation, conv7_shape, 'conv7')
+        max_pool_3 = max_pool_layer(conv7_activation, 'maxpool3')
+        #block 3
+        conv8_activation, conv8_weights = conv_layer(max_pool_3, conv8_shape, 'conv8')
+        conv9_activation, conv9_weights = conv_layer(conv8_activation, conv9_shape, 'conv9')
+        conv10_activation, conv10_weights = conv_layer(conv9_activation, conv10_shape, 'conv10')
+        # max_pool_4 = max_pool_layer(conv10_activation, 'maxpool4')
 
-    conv1_shape = [3,3,3,64]
+        #fully connected layers
+        # max_pool_4_flattened = tf.reshape(max_pool_4, [-1, fc1_shape[0]])
+        # fc1_activation, fc1_weights = fc_layer(max_pool_4_flattened,fc1_shape,'fc1')
 
-    # maxpool
+        conv10_activation_flattened = tf.reshape(conv10_activation, [-1, fc1_shape[0]])
 
-    conv2_shape = [3,3,64,128]
-    # maxpool
-    conv3_shape = [3,3,128,256]
-    conv4_shape = [3,3,256,256]
-    # maxpool
-    conv8_shape = [3, 3, 256, 512]
-    conv9_shape = [3, 3, 512, 512]
-    # # maxpool
-    #fc1_shape = [4*4*512,4096]
-    fc1_shape = [8*8*256,4096]
-    fc2_shape = [4096,4096]
-    fc3_shape = [4096,NUM_CLASSES]
 
-    #block 0
-    conv1_activation, conv1_weights = conv_layer(X, conv1_shape, 'conv1')
-    max_pool_1 = max_pool_layer(conv1_activation,'maxpool1')
-    #block 1
-    conv2_activation, conv2_weights = conv_layer(max_pool_1, conv2_shape, 'conv2')
-    max_pool_2 = max_pool_layer(conv2_activation, 'maxpool2')
-    #block 2
-    conv3_activation, conv3_weights = conv_layer(max_pool_2, conv3_shape, 'conv3')
-    conv4_activation, conv4_weights = conv_layer(conv3_activation, conv4_shape, 'conv4')
-    max_pool_3 = max_pool_layer(conv4_activation, 'maxpool3')
-    #block 3
-    #conv8_activation, conv8_weights = conv_layer(max_pool_3, conv8_shape, 'conv8')
-    #conv9_activation, conv9_weights = conv_layer(conv8_activation, conv9_shape, 'conv9')
-    #max_pool_4 = max_pool_layer(conv9_activation, 'maxpool4')
-    #fully connected layers
-    #max_pool_4_flattened = tf.reshape(max_pool_4, [-1, fc1_shape[0]])
-    #fc1_activation, fc1_weights = fc_layer(max_pool_4_flattened,fc1_shape,'fc1')
-    max_pool_3_flattened = tf.reshape(max_pool_3, [-1, fc1_shape[0]])
-    fc1_activation, fc1_weights = fc_layer(max_pool_3_flattened,fc1_shape,'fc1')
+        fc1_activation, fc1_weights = fc_layer(conv10_activation_flattened,fc1_shape,'fc1')
+        if DO_DROPOUT:
+            fc1_activation = tf.nn.dropout(fc1_activation, keep_prob)
+        fc2_activation, fc2_weights = fc_layer(fc1_activation,fc2_shape,'fc2')
+        if DO_DROPOUT:
+            fc2_activation = tf.nn.dropout(fc2_activation, keep_prob)
+        fc3_activation, fc3_weights = fc_layer(fc2_activation,fc3_shape,'fc3',act=None)
 
-    if DO_DROPOUT:
-        fc1_activation = tf.nn.dropout(fc1_activation, keep_prob)
+        y = tf.nn.softmax(fc3_activation)
 
-    fc2_activation, fc2_weights = fc_layer(fc1_activation,fc2_shape,'fc2')
 
-    if DO_DROPOUT:
-        fc2_activation = tf.nn.dropout(fc2_activation, keep_prob)
+    if CONFIGURATION == 'A':
 
-    fc3_activation, fc3_weights = fc_layer(fc2_activation,fc3_shape,'fc3', act=None)
+        conv1_shape = [3,3,3,64]
+        # maxpool
+        conv2_shape = [3,3,64,128]
+        # maxpool
+        conv3_shape = [3,3,128,256]
+        conv4_shape = [3,3,256,256]
+        # maxpool
+        fc1_shape = [8*8*256,4096]
+        fc2_shape = [4096,4096]
+        fc3_shape = [4096,NUM_CLASSES]
 
-    y = tf.nn.softmax(fc3_activation)
+        #block 0
+        conv1_activation, conv1_weights = conv_layer(X, conv1_shape, 'conv1')
+        max_pool_1 = max_pool_layer(conv1_activation,'maxpool1')
+        #block 1
+        conv2_activation, conv2_weights = conv_layer(max_pool_1, conv2_shape, 'conv2')
+        max_pool_2 = max_pool_layer(conv2_activation, 'maxpool2')
+        #block 2
+        conv3_activation, conv3_weights = conv_layer(max_pool_2, conv3_shape, 'conv3')
+        conv4_activation, conv4_weights = conv_layer(conv3_activation, conv4_shape, 'conv4')
+        max_pool_3 = max_pool_layer(conv4_activation, 'maxpool3')
+        #block 3
+        max_pool_3_flattened = tf.reshape(max_pool_3, [-1, fc1_shape[0]])
+        fc1_activation, fc1_weights = fc_layer(max_pool_3_flattened,fc1_shape,'fc1')
+
+        if DO_DROPOUT:
+            fc1_activation = tf.nn.dropout(fc1_activation, keep_prob)
+
+        fc2_activation, fc2_weights = fc_layer(fc1_activation,fc2_shape,'fc2')
+
+        if DO_DROPOUT:
+            fc2_activation = tf.nn.dropout(fc2_activation, keep_prob)
+
+        fc3_activation, fc3_weights = fc_layer(fc2_activation,fc3_shape,'fc3', act=None)
+
+        y = tf.nn.softmax(fc3_activation)
 
 
     with tf.name_scope('cross_entropy_loss'):
-        reg_const = 5e-2
+        reg_const = REG_CONST
         # reg_const = 1
         cross_entropy_logits = tf.nn.softmax_cross_entropy_with_logits(labels=y_, logits=fc3_activation)
-        # cross_entropy_regularized = cross_entropy + reg_const * (tf.nn.l2_loss(conv1_weights) +tf.nn.l2_loss(conv2_weights)
-        #                                                          + tf.nn.l2_loss(conv3_weights) + tf.nn.l2_loss(conv4_weights)
-        #                                                          + tf.nn.l2_loss(conv5_weights) + tf.nn.l2_loss(conv6_weights)
-        #                                                          + tf.nn.l2_loss(conv7_weights) + tf.nn.l2_loss(conv8_weights)
-        #                                                          + tf.nn.l2_loss(conv9_weights) + tf.nn.l2_loss(conv10_weights)
-        #                                                          + tf.nn.l2_loss(fc1_weights) + tf.nn.l2_loss(fc2_weights) + tf.nn.l2_loss(fc3_weights))
-        if DO_REGULARIZATION:
+        if DO_REGULARIZATION and CONFIGURATION == 'C':
+            cross_entropy_regularized = cross_entropy_logits + reg_const * (tf.nn.l2_loss(conv1_weights) +tf.nn.l2_loss(conv2_weights)
+                                                                 + tf.nn.l2_loss(conv3_weights) + tf.nn.l2_loss(conv4_weights)
+                                                                 + tf.nn.l2_loss(conv5_weights) + tf.nn.l2_loss(conv6_weights)
+                                                                 + tf.nn.l2_loss(conv7_weights) + tf.nn.l2_loss(conv8_weights)
+                                                                 + tf.nn.l2_loss(conv9_weights) + tf.nn.l2_loss(conv10_weights)
+                                                                 + tf.nn.l2_loss(fc1_weights) + tf.nn.l2_loss(fc2_weights) + tf.nn.l2_loss(fc3_weights))
+            cross_entropy_regularized = tf.reduce_mean(cross_entropy_regularized)
+        elif DO_REGULARIZATION and CONFIGURATION == 'A':
 
             cross_entropy_regularized = cross_entropy_logits + reg_const * (tf.nn.l2_loss(conv1_weights)
                                                                      + tf.nn.l2_loss(conv2_weights)
@@ -296,6 +300,7 @@ def vgg_C(X, y_,keep_prob):
             cross_entropy_regularized = tf.reduce_mean(cross_entropy_regularized)
         else:
             cross_entropy_regularized = tf.reduce_mean(cross_entropy_logits)
+
         variable_summaries(cross_entropy_regularized)
         tf.summary.scalar('cross_entropy',cross_entropy_regularized)
 
@@ -303,8 +308,6 @@ def vgg_C(X, y_,keep_prob):
 
 
 #TODO:
-# compare to CIFAR (different folders?)
-# arcitecture
 # shuffle batches once every epoch
 
 
@@ -315,6 +318,22 @@ def main(_):
     train_images = RGB_normalize(train_images)
     test_images = RGB_normalize(test_images)
     print train_images.shape,train_cls_vec.shape,test_images.shape,test_cls_vec.shape
+
+    print "CONFIGURATIONs = ",
+    print "INITILAIAZATION_METHOD = ", INITILAIAZATION_METHOD
+    print "OPTIMIZER = ", str(OPTIMIZER)
+    print "INITIAL_LEARNING_RATE = ", INITIAL_LEARNING_RATE
+    print "ITERATIONS = ", ITERATIONS
+    print "WEIGHTS_STDEV = ", WEIGHTS_STDEV
+    print "BIAS_CONST = ", BIAS_CONST
+    print "BATCH_SIZE = ", BATCH_SIZE
+    print "LR_ITERATIONS = ", LR_ITERATIONS
+    print "SAVE_CHECKPOINTS = ", SAVE_CHECKPOINTS
+    print "DO_REGULARIZATION = ", DO_REGULARIZATION
+    print "REG_CONST = ", REG_CONST
+    print "DO_DROPOUT = ", DO_DROPOUT
+    print "TRAIN_KEEP_PROB = ", TRAIN_KEEP_PROB
+    print "TEST_KEEP_PROB = ", TEST_KEEP_PROB
 
     x = tf.placeholder(tf.float32, shape=[None, 64, 64, 3]) #cifar is different indices
 
